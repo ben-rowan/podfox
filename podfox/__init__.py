@@ -46,23 +46,25 @@ CONFIGURATION_DEFAULTS = {
     "podcast-directory": "~/Podcasts",
     "maxnum": 5000,
     "maxage-days": 365,
-    "mimetypes": [ "audio/aac",
-                   "audio/ogg",
-                   "audio/mpeg",
-                   "audio/x-mpeg",
-                   "audio/mp3",
-                   "audio/mp4",
-                   "video/mp4" ]
+    "mimetypes": [
+        "audio/aac",
+        "audio/ogg",
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/mp4",
+        "video/mp4"
+    ]
 }
 
 CONFIGURATION = {}
 
 mimetypes = [
-    'audio/ogg',
-    'audio/mpeg',
-    'audio/x-mpeg',
-    'video/mp4',
-    'audio/x-m4a'
+    "audio/aac",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "video/mp4"
 ]
 
 def print_err(err):
@@ -83,9 +85,11 @@ def get_feed_file(shortname):
     return os.path.join(get_folder(shortname), 'feed.json')
 
 
-def get_filename_from_url(url):
-    return url.split('/')[-1].split('?')[0]
+#def get_filename_from_url(url):
+#    return url.split('/')[-1].split('?')[0]
 
+def get_file_extension_from_url(url):
+    return url.split('/')[-1].split('?')[0].split('.')[-1]
 
 def episode_too_old(episode, maxage):
     now = datetime.datetime.utcnow()
@@ -94,8 +98,11 @@ def episode_too_old(episode, maxage):
 
 
 def sort_feed(feed):
-    feed['episodes'] = sorted(feed['episodes'], key=lambda k: k['published'],
-                              reverse=True)
+    feed['episodes'] = sorted(
+        feed['episodes'],
+        key=lambda k: k['published'],
+        reverse=True
+    )
     return feed
 
 
@@ -175,6 +182,7 @@ def update_feed(feed):
                     and episode['title'] == old_episode['title']:
                 found = True
         if not found:
+            episode['new'] = True
             feed['episodes'].append(episode)
             print('new episode.')
     feed = sort_feed(feed)
@@ -216,8 +224,9 @@ def episodes_from_feed(d):
                         'url':        link.href,
                         'downloaded': False,
                         'listened':   False,
-                        'published':  date
-                        })
+                        'published':  date,
+                        'mimetype':   link.type
+                    })
     return episodes
 
 
@@ -226,19 +235,21 @@ def download_multiple(feed, maxnum):
         if maxnum == 0:
             break
         if not episode['downloaded'] and not episode_too_old(episode, CONFIGURATION['maxage-days']):
-            episode['filename'] = download_single(feed['shortname'], episode['url'])
+            episode['filename'] = download_single(feed['shortname'], episode['url'], episode['title'])
             episode['downloaded'] = True
             maxnum -= 1
     overwrite_config(feed)
 
-def download_single(folder, url):
+def download_single(folder, url, title):
     print(url)
     base = CONFIGURATION['podcast-directory']
     r = requests.get(url.strip(), stream=True)
-    try:
-        filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
-    except:
-        filename = get_filename_from_url(url)
+    extension = get_file_extension_from_url(url)
+    filename = "{}.{}".format(re.sub('[^0-9a-zA-Z_ -]+', '', title), extension);
+    #try:
+    #    filename = re.findall('filename="([^"]+)', r.headers['content-disposition'])[0]
+    #except:
+    #    filename = get_filename_from_url(url)
     print_green("{:s} downloading".format(filename))
     with open(os.path.join(base, folder, filename), 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024**2):
