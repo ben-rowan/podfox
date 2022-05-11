@@ -181,6 +181,7 @@ def update_feed(feed):
             if episode['published'] == old_episode['published'] \
                     and episode['title'] == old_episode['title']:
                 found = True
+                episode['new'] = False
         if not found:
             episode['new'] = True
             feed['episodes'].append(episode)
@@ -238,6 +239,14 @@ def download_multiple(feed, maxnum):
             episode['filename'] = download_single(feed['shortname'], episode['url'], episode['title'])
             episode['downloaded'] = True
             maxnum -= 1
+    overwrite_config(feed)
+
+def download_new(feed):
+    for episode in feed['episodes']:
+        if not episode['downloaded'] and 'new' in episode and episode['new']:
+            episode['filename'] = download_single(feed['shortname'], episode['url'], episode['title'])
+            episode['downloaded'] = True
+            episode['new'] = False
     overwrite_config(feed)
 
 def download_single(folder, url, title):
@@ -415,10 +424,10 @@ def main():
             else:
                 print_err("feed {} not found".format(arguments['<shortname>']))
                 exit(-1)
-        #download episodes for all feeds.
+        #download all new episodes
         else:
             for feed in available_feeds():
-                download_multiple(feed,  maxnum)
+                download_new(feed)
             exit(0)
     if arguments['rename']:
         rename(arguments['<shortname>'], arguments['<newname>'])
